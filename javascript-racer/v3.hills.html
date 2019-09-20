@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Javascript Racer - v3 (hills)</title>
+<meta http-equiv=Content-Type content="text/html; charset=utf-8"/>
+<link href=common.css rel=stylesheet type=text/css />
+</head>
+<body>
+<table id=controls>
+<tr>
+<td colspan=2>
+<a href=v1.straight.html>straight</a> |
+<a href=v2.curves.html>curves</a> |
+<a href=v3.hills.html>hills</a> |
+<a href=v4.final.html>final</a>
+</td>
+</tr>
+<tr><td id=fps colspan=2 align=right></td></tr>
+<tr>
+<th><label for=resolution>Resolution :</label></th>
+<td>
+<select id=resolution style=width:100%>
+<option value=fine>Fine (1280x960)</option>
+<option selected value=high>High (1024x768)</option>
+<option value=medium>Medium (640x480)</option>
+<option value=low>Low (480x360)</option>
+</select>
+</td>
+</tr>
+<tr>
+<th><label for=lanes>Lanes :</label></th>
+<td>
+<select id=lanes>
+<option>1</option>
+<option>2</option>
+<option selected>3</option>
+<option>4</option>
+</select>
+</td>
+</tr>
+<tr>
+<th><label for=roadWidth>Road Width (<span id=currentRoadWidth></span>) :</label></th>
+<td><input id=roadWidth type=range min=500 max=3000 title="integer (500-3000)"></td>
+</tr>
+<tr>
+<th><label for=cameraHeight>CameraHeight (<span id=currentCameraHeight></span>) :</label></th>
+<td><input id=cameraHeight type=range min=500 max=5000 title="integer (500-5000)"></td>
+</tr>
+<tr>
+<th><label for=drawDistance>Draw Distance (<span id=currentDrawDistance></span>) :</label></th>
+<td><input id=drawDistance type=range min=100 max=500 title="integer (100-500)"></td>
+</tr>
+<tr>
+<th><label for=fieldOfView>Field of View (<span id=currentFieldOfView></span>) :</label></th>
+<td><input id=fieldOfView type=range min=80 max=140 title="integer (80-140)"></td>
+</tr>
+<tr>
+<th><label for=fogDensity>Fog Density (<span id=currentFogDensity></span>) :</label></th>
+<td><input id=fogDensity type=range min=0 max=50 title="integer (0-50)"></td>
+</tr>
+</table>
+<div id=instructions>
+<p>Use the <b>arrow keys</b> to drive the car.</p>
+</div>
+<div id=racer>
+<canvas id=canvas>
+Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
+</canvas>
+Loading...
+</div>
+<audio id=music>
+<source src=music/racer.ogg>
+<source src=music/racer.mp3>
+</audio>
+<span id=mute></span>
+<script src=stats.js></script>
+<script src=common.js></script>
+<script>var fps=60;var step=1/fps;var width=1024;var height=768;var centrifugal=0.3;var offRoadDecel=0.99;var skySpeed=0.001;var hillSpeed=0.002;var treeSpeed=0.003;var skyOffset=0;var hillOffset=0;var treeOffset=0;var segments=[];var stats=Game.stats("fps");var canvas=Dom.get("canvas");var ctx=canvas.getContext("2d");var background=null;var sprites=null;var resolution=null;var roadWidth=2000;var segmentLength=200;var rumbleLength=3;var trackLength=null;var lanes=3;var fieldOfView=100;var cameraHeight=1000;var cameraDepth=null;var drawDistance=300;var playerX=0;var playerZ=null;var fogDensity=5;var position=0;var speed=0;var maxSpeed=segmentLength/step;var accel=maxSpeed/5;var breaking=-maxSpeed;var decel=-maxSpeed/5;var offRoadDecel=-maxSpeed/2;var offRoadLimit=maxSpeed/4;var keyLeft=false;var keyRight=false;var keyFaster=false;var keySlower=false;function update(d){var c=findSegment(position+playerZ);var a=speed/maxSpeed;var b=d*2*a;position=Util.increase(position,d*speed,trackLength);skyOffset=Util.increase(skyOffset,skySpeed*c.curve*a,1);hillOffset=Util.increase(hillOffset,hillSpeed*c.curve*a,1);treeOffset=Util.increase(treeOffset,treeSpeed*c.curve*a,1);if(keyLeft){playerX=playerX-b}else{if(keyRight){playerX=playerX+b}}playerX=playerX-(b*a*c.curve*centrifugal);if(keyFaster){speed=Util.accelerate(speed,accel,d)}else{if(keySlower){speed=Util.accelerate(speed,breaking,d)}else{speed=Util.accelerate(speed,decel,d)}}if(((playerX<-1)||(playerX>1))&&(speed>offRoadLimit)){speed=Util.accelerate(speed,offRoadDecel,d)}playerX=Util.limit(playerX,-2,2);speed=Util.limit(speed,0,maxSpeed)}function render(){var i=findSegment(position);var a=Util.percentRemaining(position,segmentLength);var b=findSegment(position+playerZ);var h=Util.percentRemaining(position+playerZ,segmentLength);var d=Util.interpolate(b.p1.world.y,b.p2.world.y,h);var f=height;var g=0;var j=-(i.curve*a);ctx.clearRect(0,0,width,height);Render.background(ctx,background,width,height,BACKGROUND.SKY,skyOffset,resolution*skySpeed*d);Render.background(ctx,background,width,height,BACKGROUND.HILLS,hillOffset,resolution*hillSpeed*d);Render.background(ctx,background,width,height,BACKGROUND.TREES,treeOffset,resolution*treeSpeed*d);var c,e;for(c=0;c<drawDistance;c++){e=segments[(i.index+c)%segments.length];e.looped=e.index<i.index;e.fog=Util.exponentialFog(c/drawDistance,fogDensity);Util.project(e.p1,(playerX*roadWidth)-g,d+cameraHeight,position-(e.looped?trackLength:0),cameraDepth,width,height,roadWidth);Util.project(e.p2,(playerX*roadWidth)-g-j,d+cameraHeight,position-(e.looped?trackLength:0),cameraDepth,width,height,roadWidth);g=g+j;j=j+e.curve;if((e.p1.camera.z<=cameraDepth)||(e.p2.screen.y>=e.p1.screen.y)||(e.p2.screen.y>=f)){continue}Render.segment(ctx,width,lanes,e.p1.screen.x,e.p1.screen.y,e.p1.screen.w,e.p2.screen.x,e.p2.screen.y,e.p2.screen.w,e.fog,e.color);f=e.p2.screen.y}Render.player(ctx,width,height,resolution,roadWidth,sprites,speed/maxSpeed,cameraDepth/playerZ,width/2,(height/2)-(cameraDepth/playerZ*Util.interpolate(b.p1.camera.y,b.p2.camera.y,h)*height/2),speed*(keyLeft?-1:keyRight?1:0),b.p2.world.y-b.p1.world.y)}function lastY(){return(segments.length==0)?0:segments[segments.length-1].p2.world.y}function addSegment(a,c){var b=segments.length;segments.push({index:b,p1:{world:{y:lastY(),z:b*segmentLength},camera:{},screen:{}},p2:{world:{y:c,z:(b+1)*segmentLength},camera:{},screen:{}},curve:a,color:Math.floor(b/rumbleLength)%2?COLORS.DARK:COLORS.LIGHT})}function addRoad(e,a,i,c,g){var d=lastY();var h=d+(Util.toInt(g,0)*segmentLength);var b,f=e+a+i;for(b=0;b<e;b++){addSegment(Util.easeIn(0,c,b/e),Util.easeInOut(d,h,b/f))}for(b=0;b<a;b++){addSegment(c,Util.easeInOut(d,h,(e+b)/f))}for(b=0;b<i;b++){addSegment(Util.easeInOut(c,0,b/i),Util.easeInOut(d,h,(e+a+b)/f))}}var ROAD={LENGTH:{NONE:0,SHORT:25,MEDIUM:50,LONG:100},HILL:{NONE:0,LOW:20,MEDIUM:40,HIGH:60},CURVE:{NONE:0,EASY:2,MEDIUM:4,HARD:6}};function addStraight(a){a=a||ROAD.LENGTH.MEDIUM;addRoad(a,a,a,0,0)}function addHill(b,a){b=b||ROAD.LENGTH.MEDIUM;a=a||ROAD.HILL.MEDIUM;addRoad(b,b,b,0,a)}function addCurve(b,c,a){b=b||ROAD.LENGTH.MEDIUM;c=c||ROAD.CURVE.MEDIUM;a=a||ROAD.HILL.NONE;addRoad(b,b,b,c,a)}function addLowRollingHills(b,a){b=b||ROAD.LENGTH.SHORT;a=a||ROAD.HILL.LOW;addRoad(b,b,b,0,a/2);addRoad(b,b,b,0,-a);addRoad(b,b,b,0,a);addRoad(b,b,b,0,0);addRoad(b,b,b,0,a/2);addRoad(b,b,b,0,0)}function addSCurves(){addRoad(ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,-ROAD.CURVE.EASY,ROAD.HILL.NONE);addRoad(ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,ROAD.CURVE.MEDIUM,ROAD.HILL.MEDIUM);addRoad(ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,ROAD.CURVE.EASY,-ROAD.HILL.LOW);addRoad(ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,-ROAD.CURVE.EASY,ROAD.HILL.MEDIUM);addRoad(ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,ROAD.LENGTH.MEDIUM,-ROAD.CURVE.MEDIUM,-ROAD.HILL.MEDIUM)}function addDownhillToEnd(a){a=a||200;addRoad(a,a,a,-ROAD.CURVE.EASY,-lastY()/segmentLength)}function resetRoad(){segments=[];addStraight(ROAD.LENGTH.SHORT/2);addHill(ROAD.LENGTH.SHORT,ROAD.HILL.LOW);addLowRollingHills();addCurve(ROAD.LENGTH.MEDIUM,ROAD.CURVE.MEDIUM,ROAD.HILL.LOW);addLowRollingHills();addCurve(ROAD.LENGTH.LONG,ROAD.CURVE.MEDIUM,ROAD.HILL.MEDIUM);addStraight();addCurve(ROAD.LENGTH.LONG,-ROAD.CURVE.MEDIUM,ROAD.HILL.MEDIUM);addHill(ROAD.LENGTH.LONG,ROAD.HILL.HIGH);addCurve(ROAD.LENGTH.LONG,ROAD.CURVE.MEDIUM,-ROAD.HILL.LOW);addHill(ROAD.LENGTH.LONG,-ROAD.HILL.MEDIUM);addStraight();addDownhillToEnd();segments[findSegment(playerZ).index+2].color=COLORS.START;segments[findSegment(playerZ).index+3].color=COLORS.START;for(var a=0;a<rumbleLength;a++){segments[segments.length-1-a].color=COLORS.FINISH}trackLength=segments.length*segmentLength}function findSegment(a){return segments[Math.floor(a/segmentLength)%segments.length]}Game.run({canvas:canvas,render:render,update:update,stats:stats,step:step,images:["background","sprites"],keys:[{keys:[KEY.LEFT,KEY.A],mode:"down",action:function(){keyLeft=true}},{keys:[KEY.RIGHT,KEY.D],mode:"down",action:function(){keyRight=true}},{keys:[KEY.UP,KEY.W],mode:"down",action:function(){keyFaster=true}},{keys:[KEY.DOWN,KEY.S],mode:"down",action:function(){keySlower=true}},{keys:[KEY.LEFT,KEY.A],mode:"up",action:function(){keyLeft=false}},{keys:[KEY.RIGHT,KEY.D],mode:"up",action:function(){keyRight=false}},{keys:[KEY.UP,KEY.W],mode:"up",action:function(){keyFaster=false}},{keys:[KEY.DOWN,KEY.S],mode:"up",action:function(){keySlower=false}}],ready:function(a){background=a[0];sprites=a[1];reset()}});function reset(a){a=a||{};canvas.width=width=Util.toInt(a.width,width);canvas.height=height=Util.toInt(a.height,height);lanes=Util.toInt(a.lanes,lanes);roadWidth=Util.toInt(a.roadWidth,roadWidth);cameraHeight=Util.toInt(a.cameraHeight,cameraHeight);drawDistance=Util.toInt(a.drawDistance,drawDistance);fogDensity=Util.toInt(a.fogDensity,fogDensity);fieldOfView=Util.toInt(a.fieldOfView,fieldOfView);segmentLength=Util.toInt(a.segmentLength,segmentLength);rumbleLength=Util.toInt(a.rumbleLength,rumbleLength);cameraDepth=1/Math.tan((fieldOfView/2)*Math.PI/180);playerZ=(cameraHeight*cameraDepth);resolution=height/480;refreshTweakUI();if((segments.length==0)||(a.segmentLength)||(a.rumbleLength)){resetRoad()}}Dom.on("resolution","change",function(d){var a,c,b;switch(d.target.options[d.target.selectedIndex].value){case"fine":a=1280;c=960;b=a/width;break;case"high":a=1024;c=768;b=a/width;break;case"medium":a=640;c=480;b=a/width;break;case"low":a=480;c=360;b=a/width;break}reset({width:a,height:c});Dom.blur(d)});Dom.on("lanes","change",function(a){Dom.blur(a);reset({lanes:a.target.options[a.target.selectedIndex].value})});Dom.on("roadWidth","change",function(a){Dom.blur(a);reset({roadWidth:Util.limit(Util.toInt(a.target.value),Util.toInt(a.target.getAttribute("min")),Util.toInt(a.target.getAttribute("max")))})});Dom.on("cameraHeight","change",function(a){Dom.blur(a);reset({cameraHeight:Util.limit(Util.toInt(a.target.value),Util.toInt(a.target.getAttribute("min")),Util.toInt(a.target.getAttribute("max")))})});Dom.on("drawDistance","change",function(a){Dom.blur(a);reset({drawDistance:Util.limit(Util.toInt(a.target.value),Util.toInt(a.target.getAttribute("min")),Util.toInt(a.target.getAttribute("max")))})});Dom.on("fieldOfView","change",function(a){Dom.blur(a);reset({fieldOfView:Util.limit(Util.toInt(a.target.value),Util.toInt(a.target.getAttribute("min")),Util.toInt(a.target.getAttribute("max")))})});Dom.on("fogDensity","change",function(a){Dom.blur(a);reset({fogDensity:Util.limit(Util.toInt(a.target.value),Util.toInt(a.target.getAttribute("min")),Util.toInt(a.target.getAttribute("max")))})});function refreshTweakUI(){Dom.get("lanes").selectedIndex=lanes-1;Dom.get("currentRoadWidth").innerHTML=Dom.get("roadWidth").value=roadWidth;Dom.get("currentCameraHeight").innerHTML=Dom.get("cameraHeight").value=cameraHeight;Dom.get("currentDrawDistance").innerHTML=Dom.get("drawDistance").value=drawDistance;Dom.get("currentFieldOfView").innerHTML=Dom.get("fieldOfView").value=fieldOfView;Dom.get("currentFogDensity").innerHTML=Dom.get("fogDensity").value=fogDensity};</script>
+</body>
